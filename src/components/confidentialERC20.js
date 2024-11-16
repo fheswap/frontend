@@ -287,7 +287,7 @@ const ConfidentialERC20 = () => {
       </div>
 
       {/* Main Content */}
-      <div className="px-4 py-8 h-full grid place-items-center w-full md:mt-12 mt-4">
+      <div className="px-4 py-8 h-full grid place-items-center w-full">
         <div className="grid gap-6 md:grid-cols-1 md:max-w-xl w-full">
           <div className="flex justify-end gap-3">
             <Link href="https://faucet.rivest.inco.org" target="_blank">
@@ -309,7 +309,7 @@ const ConfidentialERC20 = () => {
                 </h2>
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Name:</span>
+                    {/* <span className="text-slate-400">Name:</span> */}
                     <span className="text-green-400">INCO - CUSD</span>
                   </div>
                   <div className="flex justify-between">
