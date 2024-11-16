@@ -58,6 +58,8 @@ const ConfidentialERC20 = () => {
   const [amountAddTokenB, setAmountAddTokenB] = useState("");
   const [isAddingTokenA, setIsAddingTokenA] = useState(false);
   const [isAddingTokenB, setIsAddingTokenB] = useState(false);
+  const [amountRemoveLiquidity, setAmountRemoveLiquidity] = useState("");
+  const [isRemovingLiquidity, setIsRemovingLiquidity] = useState(false);
   const [instance, setInstance] = useState(null);
   const { disconnect } = useWallet();
 
@@ -377,6 +379,44 @@ const ConfidentialERC20 = () => {
                     <>
                       <Wallet className="w-4 h-4 mr-2" />
                       Add
+                    </>
+                  )}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-slate-800/50 border-slate-700">
+            <CardContent className="p-6">
+              <form onSubmit={swap} className="space-y-4">
+                <h2 className="text-lg font-semibold text-slate-200">
+                  Remove Liquidity
+                </h2>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500 w-4 h-4" />
+                  <input
+                    type="text"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-md pl-10 pr-4 py-2 text-slate-300 placeholder-slate-500"
+                    placeholder="Enter amount"
+                    value={amountRemoveLiquidity}
+                    onChange={(e) => setAmountRemoveLiquidity(e.target.value)}
+                    disabled={isRemovingLiquidity}
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  className="w-full bg-blue-500 hover:bg-blue-600 text-white"
+                  disabled={isRemovingLiquidity || !amountRemoveLiquidity}
+                >
+                  {isRemovingLiquidity ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      Removing...
+                    </>
+                  ) : (
+                    <>
+                      <Wallet className="w-4 h-4 mr-2" />
+                      Remove
                     </>
                   )}
                 </Button>
