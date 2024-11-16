@@ -26,7 +26,9 @@ import { useWallet } from "@/contexts/wallet-context";
 import Link from "next/link";
 import { getFhevmInstance } from "@/utils/fhevm";
 
-const CONTRACT_ADDRESS = "0x4A65857EE6E0E4433A514b34DcED5ecA5C0A20ab";
+const CONTRACT_ADDRESS_SWAP = "0x4A65857EE6E0E4433A514b34DcED5ecA5C0A20ab";
+const CONTRACT_ADDRESS_TOKEN_A = "0x4A65857EE6E0E4433A514b34DcED5ecA5C0A20ab";
+const CONTRACT_ADDRESS_TOKEN_B = "0x4A65857EE6E0E4433A514b34DcED5ecA5C0A20ab";
 const mintABI = [
   {
     inputs: [
@@ -53,7 +55,8 @@ const ConfidentialERC20 = () => {
   const [amountSwap, setAmountSwap] = useState("");
   const [isSwapping, setIsSwapping] = useState(false);
   const [isDecrypting, setIsDecrypting] = useState(false);
-  const [userBalance, setUserBalance] = useState("Hidden");
+  const [userBalanceA, setUserBalanceA] = useState("Hidden");
+  const [userBalanceB, setUserBalanceB] = useState("Hidden");
   const [amountAddTokenA, setAmountAddTokenA] = useState("");
   const [amountAddTokenB, setAmountAddTokenB] = useState("");
   const [isAddingTokenA, setIsAddingTokenA] = useState(false);
@@ -110,9 +113,9 @@ const ConfidentialERC20 = () => {
     event.preventDefault();
     setIsSwapping(true);
     try {
-      const contract = new Contract(CONTRACT_ADDRESS, mintABI, signer);
+      const contract = new Contract(CONTRACT_ADDRESS_SWAP, mintABI, signer);
       const input = await instance.createEncryptedInput(
-        CONTRACT_ADDRESS,
+        CONTRACT_ADDRESS_SWAP,
         await signer.getAddress()
       );
       input.add64(ethers.parseUnits(amountSwap.toString(), 6));
@@ -131,11 +134,11 @@ const ConfidentialERC20 = () => {
     }
   };
 
-  const reencrypt = async () => {
+  const reencryptA = async () => {
     setIsDecrypting(true);
     try {
       // Step 1: Check local storage for existing keys and EIP-712 signature for this contract
-      const contractKey = `reencrypt_${CONTRACT_ADDRESS}`;
+      const contractKey = `reencrypt_${CONTRACT_ADDRESS_TOKEN_A}`;
       const storedData = JSON.parse(localStorage.getItem(contractKey));
 
       let publicKey, privateKey, signature;
@@ -146,7 +149,7 @@ const ConfidentialERC20 = () => {
       } else {
         // Step 2: Generate keys and request EIP-712 signature if no data in local storage
         const { publicKey: genPublicKey, privateKey: genPrivateKey } = instance.generateKeypair();
-        const eip712 = instance.createEIP712(genPublicKey, CONTRACT_ADDRESS);
+        const eip712 = instance.createEIP712(genPublicKey, CONTRACT_ADDRESS_TOKEN_A);
 
         // Prompt user to sign the EIP-712 message
         signature = await signer.signTypedData(
@@ -165,21 +168,21 @@ const ConfidentialERC20 = () => {
       }
 
       // Step 3: Use the public key, private key, and signature in the reencrypt function
-      const contract = new Contract(CONTRACT_ADDRESS, erc20ABI, signer);
+      const contract = new Contract(CONTRACT_ADDRESS_TOKEN_A, erc20ABI, signer);
       const balanceHandle = await contract.balanceOf(await signer.getAddress());
 
       if (balanceHandle.toString() === "0") {
-        setUserBalance("0");
+        setUserBalanceA("0");
       } else {
         const balanceResult = await instance.reencrypt(
           balanceHandle,
           privateKey,
           publicKey,
           signature.replace("0x", ""),
-          CONTRACT_ADDRESS,
+          CONTRACT_ADDRESS_TOKEN_A,
           await signer.getAddress()
         );
-        setUserBalance(balanceResult.toString());
+        setUserBalanceA(balanceResult.toString());
       }
     } catch (e) {
       console.log(e);
@@ -188,6 +191,67 @@ const ConfidentialERC20 = () => {
     }
   };
 
+  const reencryptB = async () => {
+    setIsDecrypting(true);
+    try {
+      // Step 1: Check local storage for existing keys and EIP-712 signature for this contract
+      const contractKey = `reencrypt_${CONTRACT_ADDRESS_TOKEN_B}`;
+      const storedData = JSON.parse(localStorage.getItem(contractKey));
+
+      let publicKey, privateKey, signature;
+
+      if (storedData) {
+        // Use existing keys and signature if found
+        ({ publicKey, privateKey, signature } = storedData);
+      } else {
+        // Step 2: Generate keys and request EIP-712 signature if no data in local storage
+        const { publicKey: genPublicKey, privateKey: genPrivateKey } = instance.generateKeypair();
+        const eip712 = instance.createEIP712(genPublicKey, CONTRACT_ADDRESS_TOKEN_B);
+
+        // Prompt user to sign the EIP-712 message
+        signature = await signer.signTypedData(
+          eip712.domain,
+          { Reencrypt: eip712.types.Reencrypt },
+          eip712.message
+        );
+
+        // Store generated data in local storage
+        publicKey = genPublicKey;
+        privateKey = genPrivateKey;
+        localStorage.setItem(
+          contractKey,
+          JSON.stringify({ publicKey, privateKey, signature })
+        );
+      }
+
+      // Step 3: Use the public key, private key, and signature in the reencrypt function
+      const contract = new Contract(CONTRACT_ADDRESS_TOKEN_B, erc20ABI, signer);
+      const balanceHandle = await contract.balanceOf(await signer.getAddress());
+
+      if (balanceHandle.toString() === "0") {
+        setUserBalanceB("0");
+      } else {
+        const balanceResult = await instance.reencrypt(
+          balanceHandle,
+          privateKey,
+          publicKey,
+          signature.replace("0x", ""),
+          CONTRACT_ADDRESS_TOKEN_B,
+          await signer.getAddress()
+        );
+        setUserBalanceB(balanceResult.toString());
+      }
+    } catch (e) {
+      console.log(e);
+    } finally {
+      setIsDecrypting(false);
+    }
+  };
+
+  const reencrypt = async () => {
+    await reencryptA();
+    await reencryptB();
+  }
 
   const formatBalance = (balance) => {
     if (balance === "Hidden") return balance;
@@ -248,31 +312,50 @@ const ConfidentialERC20 = () => {
                     <span className="text-slate-400">Name:</span>
                     <span className="text-green-400">INCO - CUSD</span>
                   </div>
-                  {/* <div className="flex justify-between">
+                  <div className="flex justify-between">
                     <span className="text-slate-400">Symbol:</span>
-                    <span className="text-green-400">CUSD</span>
-                  </div> */}
-                  {/* <div className="flex justify-between">
-                    <span className="text-slate-400">Balance:</span>
+                    <span className="text-green-400">INCO - CUSD</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Balance of Token A:</span>
                     <div className="flex items-center space-x-2">
-                      {userBalance === "Hidden" ? (
+                      {userBalanceA === "Hidden" ? (
                         <Lock size={16} className="text-slate-500" />
                       ) : (
                         <DollarSign size={16} className="text-green-400" />
                       )}
                       <span
                         className={`${
-                          userBalance === "Hidden"
+                          userBalanceA === "Hidden"
                             ? "text-white/80"
                             : "text-green-400"
                         }`}
                       >
-                        {formatBalance(userBalance)}
+                        {formatBalance(userBalanceA)}
                       </span>
                     </div>
-                  </div> */}
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Balance of Token B:</span>
+                    <div className="flex items-center space-x-2">
+                      {userBalanceB === "Hidden" ? (
+                        <Lock size={16} className="text-slate-500" />
+                      ) : (
+                        <DollarSign size={16} className="text-green-400" />
+                      )}
+                      <span
+                        className={`${
+                          userBalanceB === "Hidden"
+                            ? "text-white/80"
+                            : "text-green-400"
+                        }`}
+                      >
+                        {formatBalance(userBalanceB)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                {/* <Button
+                <Button
                   className="w-full bg-green-500/10 border-green-500/20 hover:bg-green-500/20 text-green-400 hover:text-white"
                   variant="outline"
                   onClick={reencrypt}
@@ -289,7 +372,7 @@ const ConfidentialERC20 = () => {
                       Decrypt Balance
                     </>
                   )}
-                </Button> */}
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -397,7 +480,7 @@ const ConfidentialERC20 = () => {
                   <input
                     type="text"
                     className="w-full bg-slate-900 border border-slate-700 rounded-md pl-10 pr-4 py-2 text-slate-300 placeholder-slate-500"
-                    placeholder="Enter amount"
+                    placeholder="Enter amount For LP(Liquidity Provider) Token"
                     value={amountRemoveLiquidity}
                     onChange={(e) => setAmountRemoveLiquidity(e.target.value)}
                     disabled={isRemovingLiquidity}
