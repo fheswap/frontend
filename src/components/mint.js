@@ -26,7 +26,7 @@ import { useWallet } from "@/contexts/wallet-context";
 import Link from "next/link";
 import { getFhevmInstance } from "@/utils/fhevm";
 
-const CONTRACT_ADDRESS = "0x8b62d6baE12c8abAAF3e802320a5AE7E759786EE";
+const CONTRACT_ADDRESS = "0x811945Cc1D17482359a27A4E7D43C352DFAE0540";
 const token0 = "0x811945Cc1D17482359a27A4E7D43C352DFAE0540";
 const token1 = "0x79B912539834946DF7DFaA2539b31D2B4E487d76";
 const mintABI = [

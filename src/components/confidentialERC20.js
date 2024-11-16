@@ -26,7 +26,7 @@ import { useWallet } from "@/contexts/wallet-context";
 import Link from "next/link";
 import { getFhevmInstance } from "@/utils/fhevm";
 
-const CONTRACT_ADDRESS_SWAP = "0x8b62d6baE12c8abAAF3e802320a5AE7E759786EE";
+const CONTRACT_ADDRESS_SWAP = "0x5550edF005ffFc7f398Dc7A2DD6d5021E8D97886";
 const CONTRACT_ADDRESS_TOKEN_A = "0x811945Cc1D17482359a27A4E7D43C352DFAE0540";
 const CONTRACT_ADDRESS_TOKEN_B = "0x79B912539834946DF7DFaA2539b31D2B4E487d76";
 
@@ -54,9 +54,9 @@ const addLiquidityABI = [
         type: "bytes",
       },
     ],
-    name: "addLiquidity",
+    name: "mockAddLiquidity",
     outputs: [],
-    // stateMutability: "nonpayable",
+    stateMutability: "nonpayable",
     type: "function",
   },
 ];
@@ -145,7 +145,7 @@ const ConfidentialERC20 = () => {
     }
   };
 
-  const addLiquidity = async (event) => {
+  const mockAddLiquidity = async (event) => {
     event.preventDefault();
     setIsAddingTokenA(true);
     setIsAddingTokenB(true);
@@ -169,7 +169,7 @@ const ConfidentialERC20 = () => {
       inputB.add64(ethers.parseUnits(amountAddTokenB.toString(), 6));
       const encryptedInputB = inputB.encrypt();
 
-      const response = await contract.addLiquidity(
+      const response = await contract.mockAddLiquidity(
         encryptedInputA.handles[0],
         "0x" + toHexString(encryptedInputA.inputProof),
         encryptedInputB.handles[0],
@@ -177,6 +177,7 @@ const ConfidentialERC20 = () => {
       );
       await response.wait();
       setAmountAddTokenA("");
+      setAmountAddTokenB("");
     } catch (e) {
       console.log(e);
     } finally {
@@ -468,7 +469,7 @@ const ConfidentialERC20 = () => {
 
           <Card className="bg-slate-800/50 border-slate-700">
             <CardContent className="p-6">
-              <form onSubmit={addLiquidity} className="space-y-4">
+              <form onSubmit={mockAddLiquidity} className="space-y-4">
                 <h2 className="text-lg font-semibold text-slate-200">
                   Add Liquidity
                 </h2>
