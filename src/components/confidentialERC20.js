@@ -26,26 +26,37 @@ import { useWallet } from "@/contexts/wallet-context";
 import Link from "next/link";
 import { getFhevmInstance } from "@/utils/fhevm";
 
-const CONTRACT_ADDRESS_SWAP = "0x4A65857EE6E0E4433A514b34DcED5ecA5C0A20ab";
-const CONTRACT_ADDRESS_TOKEN_A = "0x4A65857EE6E0E4433A514b34DcED5ecA5C0A20ab";
-const CONTRACT_ADDRESS_TOKEN_B = "0x4A65857EE6E0E4433A514b34DcED5ecA5C0A20ab";
-const mintABI = [
+const CONTRACT_ADDRESS_SWAP = "0x8b62d6baE12c8abAAF3e802320a5AE7E759786EE";
+const CONTRACT_ADDRESS_TOKEN_A = "0xACd19Fc2A363E55adf21ae540E663a4E3Bb04B51";
+const CONTRACT_ADDRESS_TOKEN_B = "0xECE222520F03Fa85c811A16f1c00CbbfF6DdB789";
+
+const addLiquidityABI = [
   {
     inputs: [
       {
         internalType: "einput",
-        name: "encryptedAmount",
+        name: "_addToken0Amount",
         type: "bytes32",
       },
       {
         internalType: "bytes",
-        name: "inputProof",
+        name: "inputProof0",
+        type: "bytes",
+      },
+      {
+        internalType: "einput",
+        name: "_addToken1Amount",
+        type: "bytes32",
+      },
+      {
+        internalType: "bytes",
+        name: "inputProof1",
         type: "bytes",
       },
     ],
-    name: "_mint",
+    name: "addLiquidity",
     outputs: [],
-    stateMutability: "nonpayable",
+    // stateMutability: "nonpayable",
     type: "function",
   },
 ];
@@ -113,7 +124,7 @@ const ConfidentialERC20 = () => {
     event.preventDefault();
     setIsSwapping(true);
     try {
-      const contract = new Contract(CONTRACT_ADDRESS_SWAP, mintABI, signer);
+      const contract = new Contract(CONTRACT_ADDRESS_SWAP, addLiquidityABI, signer);
       const input = await instance.createEncryptedInput(
         CONTRACT_ADDRESS_SWAP,
         await signer.getAddress()
@@ -131,6 +142,46 @@ const ConfidentialERC20 = () => {
       console.log(e);
     } finally {
       setIsSwapping(false);
+    }
+  };
+
+  const addLiquidity = async (event) => {
+    event.preventDefault();
+    setIsAddingTokenA(true);
+    setIsAddingTokenB(true);
+    try {
+      const contract = new Contract(
+        CONTRACT_ADDRESS_SWAP,
+        addLiquidityABI,
+        signer
+      );
+      const inputA = await instance.createEncryptedInput(
+        CONTRACT_ADDRESS_SWAP,
+        await signer.getAddress()
+      );
+      inputA.add64(ethers.parseUnits(amountAddTokenA.toString(), 6));
+      const encryptedInputA = inputA.encrypt();
+
+      const inputB = await instance.createEncryptedInput(
+        CONTRACT_ADDRESS_SWAP,
+        await signer.getAddress()
+      );
+      inputB.add64(ethers.parseUnits(amountAddTokenB.toString(), 6));
+      const encryptedInputB = inputB.encrypt();
+
+      const response = await contract.addLiquidity(
+        encryptedInputA.handles[0],
+        "0x" + toHexString(encryptedInputA.inputProof),
+        encryptedInputB.handles[0],
+        "0x" + toHexString(encryptedInputB.inputProof)
+      );
+      await response.wait();
+      setAmountAddTokenA("");
+    } catch (e) {
+      console.log(e);
+    } finally {
+      setIsAddingTokenA(false);
+      setIsAddingTokenB(false);
     }
   };
 
@@ -417,7 +468,7 @@ const ConfidentialERC20 = () => {
 
           <Card className="bg-slate-800/50 border-slate-700">
             <CardContent className="p-6">
-              <form onSubmit={swap} className="space-y-4">
+              <form onSubmit={addLiquidity} className="space-y-4">
                 <h2 className="text-lg font-semibold text-slate-200">
                   Add Liquidity
                 </h2>
