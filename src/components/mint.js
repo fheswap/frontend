@@ -26,9 +26,8 @@ import { useWallet } from "@/contexts/wallet-context";
 import Link from "next/link";
 import { getFhevmInstance } from "@/utils/fhevm";
 
-const CONTRACT_ADDRESS = "0x86bFF69F59EBc79D73669481B0d1Bf3fB07Ba196";
 const CONTRACT_ADDRESS_TOKEN_0 = "0x86bFF69F59EBc79D73669481B0d1Bf3fB07Ba196";
-const CONTRACT_ADDRESS_TOKEN_1 = "0x79B912539834946DF7DFaA2539b31D2B4E487d76";
+const CONTRACT_ADDRESS_TOKEN_1 = "0x08F472c5b04Bf80Ffa6a6C25605aF19668A474Eb";
 const mintABI = [
   {
     inputs: [
@@ -111,6 +110,7 @@ const Mint = () => {
         await signer.getAddress()
       );
       input.add64(ethers.parseUnits(amountMint.toString(), 6));
+      console.log("amountMint for token 0: ", amountMint);
       const encryptedInput = input.encrypt();
 
       const response = await contract._mint(
@@ -118,7 +118,6 @@ const Mint = () => {
         "0x" + toHexString(encryptedInput.inputProof)
       );
       await response.wait();
-      setAmountMint("");
     } catch (e) {
       console.log(e);
     } finally {
@@ -135,6 +134,7 @@ const Mint = () => {
         await signer.getAddress()
       );
       input.add64(ethers.parseUnits(amountMint.toString(), 6));
+      console.log("amountMint for token 1: ", amountMint);
       const encryptedInput = input.encrypt();
 
       const response = await contract._mint(
@@ -142,7 +142,6 @@ const Mint = () => {
         "0x" + toHexString(encryptedInput.inputProof)
       );
       await response.wait();
-      setAmountMint("");
     } catch (e) {
       console.log(e);
     } finally {
@@ -154,6 +153,7 @@ const Mint = () => {
     event.preventDefault();
     await mintToken0();
     await mintToken1();
+    setAmountMint("");
   };
 
   return (

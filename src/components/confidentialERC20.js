@@ -28,8 +28,8 @@ import { getFhevmInstance } from "@/utils/fhevm";
 import Mint from "./mint";
 
 const CONTRACT_ADDRESS_SWAP = "0x966F18a9e2ee6d0b05533C75de6EDa89688f73b1";
-const CONTRACT_ADDRESS_TOKEN_A = "0x86bFF69F59EBc79D73669481B0d1Bf3fB07Ba196";
-const CONTRACT_ADDRESS_TOKEN_B = "0x08F472c5b04Bf80Ffa6a6C25605aF19668A474Eb";
+const CONTRACT_ADDRESS_TOKEN_0 = "0x86bFF69F59EBc79D73669481B0d1Bf3fB07Ba196";
+const CONTRACT_ADDRESS_TOKEN_1 = "0x08F472c5b04Bf80Ffa6a6C25605aF19668A474Eb";
 
 const addLiquidityABI = [
   {
@@ -311,7 +311,7 @@ const ConfidentialERC20 = () => {
     setIsDecrypting(true);
     try {
       // Step 1: Check local storage for existing keys and EIP-712 signature for this contract
-      const contractKey = `reencrypt_${CONTRACT_ADDRESS_TOKEN_A}`;
+      const contractKey = `reencrypt_${CONTRACT_ADDRESS_TOKEN_0}`;
       const storedData = JSON.parse(localStorage.getItem(contractKey));
 
       let publicKey, privateKey, signature;
@@ -322,7 +322,7 @@ const ConfidentialERC20 = () => {
       } else {
         // Step 2: Generate keys and request EIP-712 signature if no data in local storage
         const { publicKey: genPublicKey, privateKey: genPrivateKey } = instance.generateKeypair();
-        const eip712 = instance.createEIP712(genPublicKey, CONTRACT_ADDRESS_TOKEN_A);
+        const eip712 = instance.createEIP712(genPublicKey, CONTRACT_ADDRESS_TOKEN_0);
 
         // Prompt user to sign the EIP-712 message
         signature = await signer.signTypedData(
@@ -341,7 +341,7 @@ const ConfidentialERC20 = () => {
       }
 
       // Step 3: Use the public key, private key, and signature in the reencrypt function
-      const contract = new Contract(CONTRACT_ADDRESS_TOKEN_A, erc20ABI, signer);
+      const contract = new Contract(CONTRACT_ADDRESS_TOKEN_0, erc20ABI, signer);
       const balanceHandle = await contract.balanceOf(await signer.getAddress());
 
       if (balanceHandle.toString() === "0") {
@@ -352,7 +352,7 @@ const ConfidentialERC20 = () => {
           privateKey,
           publicKey,
           signature.replace("0x", ""),
-          CONTRACT_ADDRESS_TOKEN_A,
+          CONTRACT_ADDRESS_TOKEN_0,
           await signer.getAddress()
         );
         setUserBalanceA(balanceResult.toString());
@@ -368,7 +368,7 @@ const ConfidentialERC20 = () => {
     setIsDecrypting(true);
     try {
       // Step 1: Check local storage for existing keys and EIP-712 signature for this contract
-      const contractKey = `reencrypt_${CONTRACT_ADDRESS_TOKEN_B}`;
+      const contractKey = `reencrypt_${CONTRACT_ADDRESS_TOKEN_1}`;
       const storedData = JSON.parse(localStorage.getItem(contractKey));
 
       let publicKey, privateKey, signature;
@@ -379,7 +379,7 @@ const ConfidentialERC20 = () => {
       } else {
         // Step 2: Generate keys and request EIP-712 signature if no data in local storage
         const { publicKey: genPublicKey, privateKey: genPrivateKey } = instance.generateKeypair();
-        const eip712 = instance.createEIP712(genPublicKey, CONTRACT_ADDRESS_TOKEN_B);
+        const eip712 = instance.createEIP712(genPublicKey, CONTRACT_ADDRESS_TOKEN_1);
 
         // Prompt user to sign the EIP-712 message
         signature = await signer.signTypedData(
@@ -398,7 +398,7 @@ const ConfidentialERC20 = () => {
       }
 
       // Step 3: Use the public key, private key, and signature in the reencrypt function
-      const contract = new Contract(CONTRACT_ADDRESS_TOKEN_B, erc20ABI, signer);
+      const contract = new Contract(CONTRACT_ADDRESS_TOKEN_1, erc20ABI, signer);
       const balanceHandle = await contract.balanceOf(await signer.getAddress());
 
       if (balanceHandle.toString() === "0") {
@@ -409,7 +409,7 @@ const ConfidentialERC20 = () => {
           privateKey,
           publicKey,
           signature.replace("0x", ""),
-          CONTRACT_ADDRESS_TOKEN_B,
+          CONTRACT_ADDRESS_TOKEN_1,
           await signer.getAddress()
         );
         setUserBalanceB(balanceResult.toString());
@@ -425,7 +425,7 @@ const ConfidentialERC20 = () => {
     setIsDecrypting(true);
     try {
       // Step 1: Check local storage for existing keys and EIP-712 signature for this contract
-      const contractKey = `reencrypt_${CONTRACT_ADDRESS_TOKEN_B}`;
+      const contractKey = `reencrypt_${CONTRACT_ADDRESS_TOKEN_1}`;
       const storedData = JSON.parse(localStorage.getItem(contractKey));
 
       let publicKey, privateKey, signature;
@@ -436,7 +436,7 @@ const ConfidentialERC20 = () => {
       } else {
         // Step 2: Generate keys and request EIP-712 signature if no data in local storage
         const { publicKey: genPublicKey, privateKey: genPrivateKey } = instance.generateKeypair();
-        const eip712 = instance.createEIP712(genPublicKey, CONTRACT_ADDRESS_TOKEN_B);
+        const eip712 = instance.createEIP712(genPublicKey, CONTRACT_ADDRESS_TOKEN_1);
 
         // Prompt user to sign the EIP-712 message
         signature = await signer.signTypedData(
@@ -455,7 +455,7 @@ const ConfidentialERC20 = () => {
       }
 
       // Step 3: Use the public key, private key, and signature in the reencrypt function
-      const contract = new Contract(CONTRACT_ADDRESS_TOKEN_B, erc20ABI, signer);
+      const contract = new Contract(CONTRACT_ADDRESS_TOKEN_1, erc20ABI, signer);
       const balanceHandle = await contract.balanceOf(CONTRACT_ADDRESS_SWAP);
 
       if (balanceHandle.toString() === "0") {
@@ -466,7 +466,7 @@ const ConfidentialERC20 = () => {
           privateKey,
           publicKey,
           signature.replace("0x", ""),
-          CONTRACT_ADDRESS_TOKEN_A,
+          CONTRACT_ADDRESS_TOKEN_0,
           await signer.getAddress()
         );
         const balanceResultB = await instance.reencrypt(
@@ -474,7 +474,7 @@ const ConfidentialERC20 = () => {
           privateKey,
           publicKey,
           signature.replace("0x", ""),
-          CONTRACT_ADDRESS_TOKEN_B,
+          CONTRACT_ADDRESS_TOKEN_1,
           await signer.getAddress()
         );
         const balanceResult = balanceResultA.toString() + " | " + balanceResultB.toString();
@@ -557,7 +557,7 @@ const ConfidentialERC20 = () => {
                     <span className="text-green-400">INCO - CUSD</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Balance of Token A:</span>
+                    <span className="text-slate-400">Balance of Token 0:</span>
                     <div className="flex items-center space-x-2">
                       {userBalanceA === "Hidden" ? (
                         <Lock size={16} className="text-slate-500" />
@@ -576,7 +576,7 @@ const ConfidentialERC20 = () => {
                     </div>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Balance of Token B:</span>
+                    <span className="text-slate-400">Balance of Token 1:</span>
                     <div className="flex items-center space-x-2">
                       {userBalanceB === "Hidden" ? (
                         <Lock size={16} className="text-slate-500" />
@@ -685,7 +685,7 @@ const ConfidentialERC20 = () => {
                   <input
                     type="text"
                     className="w-full bg-slate-900 border border-slate-700 rounded-md pl-10 pr-4 py-2 text-slate-300 placeholder-slate-500"
-                    placeholder="Enter amount For Token A"
+                    placeholder="Enter amount For Token 0"
                     value={amountAddTokenA}
                     onChange={(e) => setAmountAddTokenA(e.target.value)}
                     disabled={isAddingTokenA}
@@ -696,7 +696,7 @@ const ConfidentialERC20 = () => {
                   <input
                     type="text"
                     className="w-full bg-slate-900 border border-slate-700 rounded-md pl-10 pr-4 py-2 text-slate-300 placeholder-slate-500"
-                    placeholder="Enter amount For Token B"
+                    placeholder="Enter amount For Token 1"
                     value={amountAddTokenB}
                     onChange={(e) => setAmountAddTokenB(e.target.value)}
                     disabled={isAddingTokenB}
