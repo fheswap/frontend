@@ -285,7 +285,7 @@ const ConfidentialERC20 = () => {
     try {
       const contract = new Contract(
         CONTRACT_ADDRESS_SWAP,
-        addLiquidityABI,
+        removeLiquidityABI,
         signer
       );
       const inputA = await instance.createEncryptedInput(
