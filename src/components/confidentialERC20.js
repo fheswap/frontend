@@ -25,10 +25,11 @@ import erc20ABI from "@/abi/erc20ABI.json";
 import { useWallet } from "@/contexts/wallet-context";
 import Link from "next/link";
 import { getFhevmInstance } from "@/utils/fhevm";
+import Mint from "./mint";
 
-const CONTRACT_ADDRESS_SWAP = "0xC18C905A64959b09751b93c30636998E4766878d";
-const CONTRACT_ADDRESS_TOKEN_A = "0x811945Cc1D17482359a27A4E7D43C352DFAE0540";
-const CONTRACT_ADDRESS_TOKEN_B = "0x79B912539834946DF7DFaA2539b31D2B4E487d76";
+const CONTRACT_ADDRESS_SWAP = "0x966F18a9e2ee6d0b05533C75de6EDa89688f73b1";
+const CONTRACT_ADDRESS_TOKEN_A = "0x86bFF69F59EBc79D73669481B0d1Bf3fB07Ba196";
+const CONTRACT_ADDRESS_TOKEN_B = "0x08F472c5b04Bf80Ffa6a6C25605aF19668A474Eb";
 
 const addLiquidityABI = [
   {
@@ -92,6 +93,27 @@ const preSwapABI = [
   },
 ];
 
+const removeLiquidityABI = [
+  {
+    inputs: [
+      {
+        internalType: "einput",
+        name: "_toBurnInput",
+        type: "bytes32",
+      },
+      {
+        internalType: "bytes",
+        name: "inputProof",
+        type: "bytes",
+      },
+    ],
+    name: "removeLiquidity",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+];
+
 const ConfidentialERC20 = () => {
   const [signer, setSigner] = useState(null);
   const [amountSwap, setAmountSwap] = useState("");
@@ -99,6 +121,7 @@ const ConfidentialERC20 = () => {
   const [isDecrypting, setIsDecrypting] = useState(false);
   const [userBalanceA, setUserBalanceA] = useState("Hidden");
   const [userBalanceB, setUserBalanceB] = useState("Hidden");
+  const [userBalancePool, setUserBalancePool] = useState("Hidden");
   const [amountAddTokenA, setAmountAddTokenA] = useState("");
   const [amountAddTokenB, setAmountAddTokenB] = useState("");
   const [isAddingTokenA, setIsAddingTokenA] = useState(false);
@@ -256,6 +279,34 @@ const ConfidentialERC20 = () => {
     }
   };
 
+  const removeLiquidity = async (event) => {
+    event.preventDefault();
+    setIsRemovingLiquidity(true);
+    try {
+      const contract = new Contract(
+        CONTRACT_ADDRESS_SWAP,
+        addLiquidityABI,
+        signer
+      );
+      const inputA = await instance.createEncryptedInput(
+        CONTRACT_ADDRESS_SWAP,
+        await signer.getAddress()
+      );
+      inputA.add64(ethers.parseUnits(amountRemoveLiquidity.toString(), 6));
+      const encryptedInputA = inputA.encrypt();
+      const response = await contract.removeLiquidity(
+        encryptedInputA.handles[0],
+        "0x" + toHexString(encryptedInputA.inputProof)
+      );
+      await response.wait();
+      setAmountRemoveLiquidity("");
+    } catch (e) {
+      console.log(e);
+    } finally {
+      setIsRemovingLiquidity(false);
+    }
+  };
+
   const reencryptA = async () => {
     setIsDecrypting(true);
     try {
@@ -370,9 +421,76 @@ const ConfidentialERC20 = () => {
     }
   };
 
+  const reencryptPool = async () => {
+    setIsDecrypting(true);
+    try {
+      // Step 1: Check local storage for existing keys and EIP-712 signature for this contract
+      const contractKey = `reencrypt_${CONTRACT_ADDRESS_TOKEN_B}`;
+      const storedData = JSON.parse(localStorage.getItem(contractKey));
+
+      let publicKey, privateKey, signature;
+
+      if (storedData) {
+        // Use existing keys and signature if found
+        ({ publicKey, privateKey, signature } = storedData);
+      } else {
+        // Step 2: Generate keys and request EIP-712 signature if no data in local storage
+        const { publicKey: genPublicKey, privateKey: genPrivateKey } = instance.generateKeypair();
+        const eip712 = instance.createEIP712(genPublicKey, CONTRACT_ADDRESS_TOKEN_B);
+
+        // Prompt user to sign the EIP-712 message
+        signature = await signer.signTypedData(
+          eip712.domain,
+          { Reencrypt: eip712.types.Reencrypt },
+          eip712.message
+        );
+
+        // Store generated data in local storage
+        publicKey = genPublicKey;
+        privateKey = genPrivateKey;
+        localStorage.setItem(
+          contractKey,
+          JSON.stringify({ publicKey, privateKey, signature })
+        );
+      }
+
+      // Step 3: Use the public key, private key, and signature in the reencrypt function
+      const contract = new Contract(CONTRACT_ADDRESS_TOKEN_B, erc20ABI, signer);
+      const balanceHandle = await contract.balanceOf(CONTRACT_ADDRESS_SWAP);
+
+      if (balanceHandle.toString() === "0") {
+        setUserBalancePool("0");
+      } else {
+        const balanceResultA = await instance.reencrypt(
+          balanceHandle,
+          privateKey,
+          publicKey,
+          signature.replace("0x", ""),
+          CONTRACT_ADDRESS_TOKEN_A,
+          await signer.getAddress()
+        );
+        const balanceResultB = await instance.reencrypt(
+          balanceHandle,
+          privateKey,
+          publicKey,
+          signature.replace("0x", ""),
+          CONTRACT_ADDRESS_TOKEN_B,
+          await signer.getAddress()
+        );
+        const balanceResult = balanceResultA.toString() + " | " + balanceResultB.toString();
+        setUserBalancePool(balanceResult);
+      }
+    } catch (e) {
+      console.log(e);
+    } finally {
+      setIsDecrypting(false);
+    }
+  };
+
   const reencrypt = async () => {
     await reencryptA();
     await reencryptB();
+    await reencryptPool();
   }
 
   const formatBalance = (balance) => {
@@ -473,6 +591,25 @@ const ConfidentialERC20 = () => {
                         }`}
                       >
                         {formatBalance(userBalanceB)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Balance of Token0 and Token1 In Pool:</span>
+                    <div className="flex items-center space-x-2">
+                      {userBalancePool === "Hidden" ? (
+                        <Lock size={16} className="text-slate-500" />
+                      ) : (
+                        <DollarSign size={16} className="text-green-400" />
+                      )}
+                      <span
+                        className={`${
+                          userBalancePool === "Hidden"
+                            ? "text-white/80"
+                            : "text-green-400"
+                        }`}
+                      >
+                        {formatBalance(userBalancePool)}
                       </span>
                     </div>
                   </div>
@@ -593,7 +730,7 @@ const ConfidentialERC20 = () => {
 
           <Card className="bg-slate-800/50 border-slate-700">
             <CardContent className="p-6">
-              <form onSubmit={swap} className="space-y-4">
+              <form onSubmit={removeLiquidity} className="space-y-4">
                 <h2 className="text-lg font-semibold text-slate-200">
                   Remove Liquidity
                 </h2>
@@ -628,6 +765,7 @@ const ConfidentialERC20 = () => {
               </form>
             </CardContent>
           </Card>
+          <Mint />
         </div>
       </div>
     </div>

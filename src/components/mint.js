@@ -26,9 +26,9 @@ import { useWallet } from "@/contexts/wallet-context";
 import Link from "next/link";
 import { getFhevmInstance } from "@/utils/fhevm";
 
-const CONTRACT_ADDRESS = "0x811945Cc1D17482359a27A4E7D43C352DFAE0540";
-const token0 = "0x811945Cc1D17482359a27A4E7D43C352DFAE0540";
-const token1 = "0x79B912539834946DF7DFaA2539b31D2B4E487d76";
+const CONTRACT_ADDRESS = "0x86bFF69F59EBc79D73669481B0d1Bf3fB07Ba196";
+const CONTRACT_ADDRESS_TOKEN_0 = "0x86bFF69F59EBc79D73669481B0d1Bf3fB07Ba196";
+const CONTRACT_ADDRESS_TOKEN_1 = "0x79B912539834946DF7DFaA2539b31D2B4E487d76";
 const mintABI = [
   {
     inputs: [
@@ -102,13 +102,12 @@ const Mint = () => {
 
   if (!instance) return null;
 
-  const mint = async (event) => {
-    event.preventDefault();
+  const mintToken0 = async () => {
     setIsMinting(true);
     try {
-      const contract = new Contract(CONTRACT_ADDRESS, mintABI, signer);
+      const contract = new Contract(CONTRACT_ADDRESS_TOKEN_0, mintABI, signer);
       const input = await instance.createEncryptedInput(
-        CONTRACT_ADDRESS,
+        CONTRACT_ADDRESS_TOKEN_0,
         await signer.getAddress()
       );
       input.add64(ethers.parseUnits(amountMint.toString(), 6));
@@ -127,195 +126,40 @@ const Mint = () => {
     }
   };
 
-  const reencrypt = async () => {
-    setIsDecrypting(true);
+  const mintToken1 = async () => {
+    setIsMinting(true);
     try {
-      // Step 1: Check local storage for existing keys and EIP-712 signature for this contract
-      const contractKey = `reencrypt_${CONTRACT_ADDRESS}`;
-      const storedData = JSON.parse(localStorage.getItem(contractKey));
+      const contract = new Contract(CONTRACT_ADDRESS_TOKEN_1, mintABI, signer);
+      const input = await instance.createEncryptedInput(
+        CONTRACT_ADDRESS_TOKEN_1,
+        await signer.getAddress()
+      );
+      input.add64(ethers.parseUnits(amountMint.toString(), 6));
+      const encryptedInput = input.encrypt();
 
-      let publicKey, privateKey, signature;
-
-      if (storedData) {
-        // Use existing keys and signature if found
-        ({ publicKey, privateKey, signature } = storedData);
-      } else {
-        // Step 2: Generate keys and request EIP-712 signature if no data in local storage
-        const { publicKey: genPublicKey, privateKey: genPrivateKey } =
-          instance.generateKeypair();
-        const eip712 = instance.createEIP712(genPublicKey, CONTRACT_ADDRESS);
-
-        // Prompt user to sign the EIP-712 message
-        signature = await signer.signTypedData(
-          eip712.domain,
-          { Reencrypt: eip712.types.Reencrypt },
-          eip712.message
-        );
-
-        // Store generated data in local storage
-        publicKey = genPublicKey;
-        privateKey = genPrivateKey;
-        localStorage.setItem(
-          contractKey,
-          JSON.stringify({ publicKey, privateKey, signature })
-        );
-      }
-
-      // Step 3: Use the public key, private key, and signature in the reencrypt function
-      const contract = new Contract(CONTRACT_ADDRESS, erc20ABI, signer);
-      const balanceHandle = await contract.balanceOf(await signer.getAddress());
-
-      if (balanceHandle.toString() === "0") {
-        setUserBalance("0");
-      } else {
-        const balanceResult = await instance.reencrypt(
-          balanceHandle,
-          privateKey,
-          publicKey,
-          signature.replace("0x", ""),
-          CONTRACT_ADDRESS,
-          await signer.getAddress()
-        );
-        setUserBalance(balanceResult.toString());
-      }
+      const response = await contract._mint(
+        encryptedInput.handles[0],
+        "0x" + toHexString(encryptedInput.inputProof)
+      );
+      await response.wait();
+      setAmountMint("");
     } catch (e) {
       console.log(e);
     } finally {
-      setIsDecrypting(false);
+      setIsMinting(false);
     }
   };
 
-  const formatBalance = (balance) => {
-    if (balance === "Hidden") return balance;
-    const amount = balance?.slice(0, -6) || "0";
-    return `${Number(amount).toLocaleString()}`;
+  const mint = async (event) => {
+    event.preventDefault();
+    await mintToken0();
+    await mintToken1();
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 font-mono">
-      <div className="border-b border-slate-800">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <img src="/inco-logo.svg" alt="Inco Logo" className="w-24" />
-              <h1 className="text-xl font-bold text-[#BCD0FC] hidden md:flex">
-                Confidential ERC20
-              </h1>
-            </div>
-            <div className="flex items-center space-x-2">
-              {" "}
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-red-500/10 border-red-500/20 hover:bg-red-500/20 text-red-400 hover:text-white"
-                onClick={disconnect}
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Disconnect
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="px-4 py-8 h-full grid place-items-center w-full md:mt-12 mt-4">
-        <div className="grid gap-6 md:grid-cols-1 md:max-w-xl w-full">
-          <div className="flex justify-end gap-3">
-            <Link href="https://faucet.rivest.inco.org" target="_blank">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="hover:bg-transparent hover:text-white/80"
-              >
-                <ArrowUpIcon className="w-4 h-4 mr-2 rotate-45" />
-                Get Inco Tokens
-              </Button>
-            </Link>
-            <div>
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="bg-green-500/10 border-green-500/20 hover:bg-green-500/20 text-green-400 hover:text-white"
-                  >
-                    <HelpCircle className="w-4 h-4 mr-2" />
-                    How it works?
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-2xl bg-slate-900 border-slate-800 font-mono">
-                  <DialogHeader>
-                    <DialogTitle className="flex items-center space-x-2 text-fuchsia-50 font-mono">
-                      <Key className="w-5 h-5" />
-                      <span>Smart Contract Implementation</span>
-                    </DialogTitle>
-                  </DialogHeader>
-                  <CodeSnippets />
-                </DialogContent>
-              </Dialog>
-            </div>
-          </div>
-          <Card className="bg-slate-800/50 border-slate-700">
-            <CardContent className="p-6">
-              <div className="space-y-4">
-                <h2 className="text-lg font-semibold text-slate-200">
-                  Token Info
-                </h2>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Name:</span>
-                    <span className="text-green-400">Confidential ERC-20</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Symbol:</span>
-                    <span className="text-green-400">CUSD</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Balance:</span>
-                    <div className="flex items-center space-x-2">
-                      {userBalance === "Hidden" ? (
-                        <Lock size={16} className="text-slate-500" />
-                      ) : (
-                        <DollarSign size={16} className="text-green-400" />
-                      )}
-                      <span
-                        className={`${
-                          userBalance === "Hidden"
-                            ? "text-white/80"
-                            : "text-green-400"
-                        }`}
-                      >
-                        {formatBalance(userBalance)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <Button
-                  className="w-full bg-green-500/10 border-green-500/20 hover:bg-green-500/20 text-green-400 hover:text-white"
-                  variant="outline"
-                  onClick={reencrypt}
-                  disabled={isDecrypting}
-                >
-                  {isDecrypting ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                      Decrypting...
-                    </>
-                  ) : (
-                    <>
-                      <Lock className="w-4 h-4 mr-2" />
-                      Decrypt Balance
-                    </>
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-slate-800/50 border-slate-700">
-            <CardContent className="p-6">
-              <form onSubmit={mint} className="space-y-4">
+        <Card className="bg-slate-800/50 border-slate-700">
+          <CardContent className="p-6">
+            <form onSubmit={mint} className="space-y-4">
                 <h2 className="text-lg font-semibold text-slate-200">
                   Mint Tokens
                 </h2>
@@ -349,10 +193,7 @@ const Mint = () => {
                 </Button>
               </form>
             </CardContent>
-          </Card>
-        </div>
-      </div>
-    </div>
+        </Card>
   );
 };
 
