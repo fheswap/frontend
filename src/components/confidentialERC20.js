@@ -26,7 +26,7 @@ import { useWallet } from "@/contexts/wallet-context";
 import Link from "next/link";
 import { getFhevmInstance } from "@/utils/fhevm";
 
-const CONTRACT_ADDRESS_SWAP = "0x5550edF005ffFc7f398Dc7A2DD6d5021E8D97886";
+const CONTRACT_ADDRESS_SWAP = "0xC18C905A64959b09751b93c30636998E4766878d";
 const CONTRACT_ADDRESS_TOKEN_A = "0x811945Cc1D17482359a27A4E7D43C352DFAE0540";
 const CONTRACT_ADDRESS_TOKEN_B = "0x79B912539834946DF7DFaA2539b31D2B4E487d76";
 
@@ -55,6 +55,37 @@ const addLiquidityABI = [
       },
     ],
     name: "mockAddLiquidity",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+];
+
+const preSwapABI = [
+  {
+    inputs: [
+      {
+        internalType: "einput",
+        name: "_amount0In",
+        type: "bytes32",
+      },
+      {
+        internalType: "bytes",
+        name: "input0Proof",
+        type: "bytes",
+      },
+      {
+        internalType: "einput",
+        name: "_amount1In",
+        type: "bytes32",
+      },
+      {
+        internalType: "bytes",
+        name: "input1Proof",
+        type: "bytes",
+      },
+    ],
+    name: "preSwap",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function",
@@ -132,9 +163,48 @@ const ConfidentialERC20 = () => {
       input.add64(ethers.parseUnits(amountSwap.toString(), 6));
       const encryptedInput = input.encrypt();
 
-      const response = await contract._mint(
+      const response = await contract.preSwapABI(
         encryptedInput.handles[0],
         "0x" + toHexString(encryptedInput.inputProof)
+      );
+      await response.wait();
+      setAmountSwap("");
+    } catch (e) {
+      console.log(e);
+    } finally {
+      setIsSwapping(false);
+    }
+  };
+
+  const preSwap = async (event) => {
+    event.preventDefault();
+    setIsSwapping(true);
+    try {
+      const contract = new Contract(
+        CONTRACT_ADDRESS_SWAP,
+        preSwapABI,
+        signer
+      );
+      const inputA = await instance.createEncryptedInput(
+        CONTRACT_ADDRESS_SWAP,
+        await signer.getAddress()
+      );
+      inputA.add64(ethers.parseUnits(amountSwap.toString(), 6));
+      const encryptedInputA = inputA.encrypt();
+
+      const inputB = await instance.createEncryptedInput(
+        CONTRACT_ADDRESS_SWAP,
+        await signer.getAddress()
+      );
+      // inputB.add64(ethers.parseUnits(amountAddTokenB.toString(), 6));
+      inputB.add64(ethers.parseUnits("0", 6));
+      const encryptedInputB = inputB.encrypt();
+
+      const response = await contract.preSwap(
+        encryptedInputA.handles[0],
+        "0x" + toHexString(encryptedInputA.inputProof),
+        encryptedInputB.handles[0],
+        "0x" + toHexString(encryptedInputB.inputProof)
       );
       await response.wait();
       setAmountSwap("");
@@ -431,7 +501,7 @@ const ConfidentialERC20 = () => {
 
           <Card className="bg-slate-800/50 border-slate-700">
             <CardContent className="p-6">
-              <form onSubmit={swap} className="space-y-4">
+              <form onSubmit={preSwap} className="space-y-4">
                 <h2 className="text-lg font-semibold text-slate-200">
                   Swap Tokens
                 </h2>
